@@ -1,3 +1,13 @@
+python-django-compressor (0.6a7-0sg2) lucid; urgency=low
+
+  [ Casey ]
+  * Added some missing deps
+  * Generated file
+
+  [ SimpleGeo Nerds ]
+
+ -- SimpleGeo Nerds <nerds@simplegeo.com>  Mon, 10 Jan 2011 21:20:10 +0000
+
 python-django-compressor (0.6a7-0sg0) unstable; urgency=low
 
   * Simplegeoized.
