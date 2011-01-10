@@ -1,0 +1,14 @@
+Source: python-django-compressor
+Section: python
+Priority: optional
+Maintainer: SimpleGeo Nerds <nerds@simplegeo.com>
+Uploaders: Casey Crites <casey@simplegeo.com>
+Build-Depends: debhelper (>= 7), python-support, python-setuptools
+Standards-Version: 3.8.4
+Homepage: https://github.com/simplegeo/django_compressor
+
+Package: python-django-compressor
+Architecture: all
+Depends: ${misc:Depends}, ${python:Depends}, python-django (>= 1.2)
+Description: django_compressor
+ Compresses linked and inline javascript or CSS into a single cached file.
