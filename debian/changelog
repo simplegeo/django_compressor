@@ -1,3 +1,13 @@
+python-django-compressor (0.6a7-0sg5) lucid; urgency=low
+
+  [ Casey ]
+  * Added beautifulsoup and lxml to the Depends line
+  * Fixed the version of beautifulsoup
+
+  [ SimpleGeo Nerds ]
+
+ -- SimpleGeo Nerds <nerds@simplegeo.com>  Wed, 12 Jan 2011 16:55:25 +0000
+
 python-django-compressor (0.6a7-0sg4) lucid; urgency=low
 
   * UNRELEASED
