@@ -1,3 +1,12 @@
+python-django-compressor (0.6a7-0sg26) maverick; urgency=low
+
+  [ Jon Rohan ]
+  * adding html5 prefetch to link tag
+
+  [ SimpleGeo Nerds ]
+
+ -- SimpleGeo Nerds <nerds@simplegeo.com>  Tue, 19 Jul 2011 00:02:52 +0000
+
 python-django-compressor (0.6a7-0sg25) maverick; urgency=low
 
   * UNRELEASED
