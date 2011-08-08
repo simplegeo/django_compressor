@@ -36,7 +36,10 @@ from compressor.management.commands.compress import Command as CompressCommand
 from compressor.utils import find_command
 from compressor.filters.base import CompilerFilter
 
-
+def css_tag(href, **kwargs):
+    return u'<link rel="stylesheet" href="{0}" type="text/css" {attrs}/>'.format(
+        href, attrs=''.join(['{0}="{1}" '.format(k, v) for k, v in kwargs.items()])
+    )
 class CompressorTestCase(TestCase):
 
     def setUp(self):
@@ -94,7 +97,7 @@ class CompressorTestCase(TestCase):
         self.assertEqual('c618e6846d04', get_hexdigest(self.css, 12))
 
     def test_css_return_if_on(self):
-        output = u'<link rel="stylesheet" href="/media/CACHE/css/e41ba2cc6982.css" type="text/css">'
+        output = css_tag('/media/CACHE/css/e41ba2cc6982.css')
         self.assertEqual(output, self.css_node.output().strip())
 
     def test_js_split(self):
@@ -343,7 +346,7 @@ class TemplatetagTestCase(TestCase):
         {% endcompress %}
         """
         context = { 'MEDIA_URL': settings.COMPRESS_URL }
-        out = u'<link rel="stylesheet" href="/media/CACHE/css/e41ba2cc6982.css" type="text/css">'
+        out = css_tag("/media/CACHE/css/e41ba2cc6982.css")
         self.assertEqual(out, render(template, context))
 
     def test_nonascii_css_tag(self):
@@ -353,7 +356,7 @@ class TemplatetagTestCase(TestCase):
         {% endcompress %}
         """
         context = { 'MEDIA_URL': settings.COMPRESS_URL }
-        out = '<link rel="stylesheet" href="/media/CACHE/css/799f6defe43c.css" type="text/css">'
+        out = css_tag("/media/CACHE/css/799f6defe43c.css")
         self.assertEqual(out, render(template, context))
 
     def test_js_tag(self):
@@ -422,7 +425,7 @@ class StorageTestCase(TestCase):
         {% endcompress %}
         """
         context = { 'MEDIA_URL': settings.COMPRESS_URL }
-        out = u'<link rel="stylesheet" href="/media/CACHE/css/1d4424458f88.css.gz" type="text/css">'
+        out = css_tag("/media/CACHE/css/1d4424458f88.css")
         self.assertEqual(out, render(template, context))
 
 
@@ -455,7 +458,7 @@ class OfflineGenerationTestCase(TestCase):
         count, result = CompressCommand().compress()
         self.assertEqual(2, count)
         self.assertEqual([
-            u'<link rel="stylesheet" href="/media/CACHE/css/cd579b7deb7d.css" type="text/css">\n',
+            css_tag('/media/CACHE/css/cd579b7deb7d.css')+'\n',
             u'<script type="text/javascript" src="/media/CACHE/js/0a2bb9a287c0.js" charset="utf-8"></script>',
         ], result)
 
@@ -466,12 +469,31 @@ class OfflineGenerationTestCase(TestCase):
         }
         count, result = CompressCommand().compress()
         self.assertEqual(2, count)
-        self.assertEqual([
-            u'<link rel="stylesheet" href="/media/CACHE/css/ee62fbfd116a.css" type="text/css">\n',
+        self.assertEqual([      
+            css_tag('/media/CACHE/css/ee62fbfd116a.css')+'\n',
             u'<script type="text/javascript" src="/media/CACHE/js/0a2bb9a287c0.js" charset="utf-8"></script>',
         ], result)
         settings.COMPRESS_OFFLINE_CONTEXT = self._old_offline_context
 
+    def test_get_loaders(self):
+        old_loaders = settings.TEMPLATE_LOADERS
+        settings.TEMPLATE_LOADERS = (
+            ('django.template.loaders.cached.Loader', (
+                'django.template.loaders.filesystem.Loader',
+                'django.template.loaders.app_directories.Loader',
+            )),
+        )
+        try:
+            from django.template.loaders.filesystem import Loader as FileSystemLoader
+            from django.template.loaders.app_directories import Loader as AppDirectoriesLoader
+        except ImportError:
+            pass
+        else:
+            loaders = CompressCommand().get_loaders()
+            self.assertTrue(isinstance(loaders[0], FileSystemLoader))
+            self.assertTrue(isinstance(loaders[1], AppDirectoriesLoader))
+        finally:
+            settings.TEMPLATE_LOADERS = old_loaders
 
 class CssTidyTestCase(TestCase):
     def test_tidy(self):
@@ -483,43 +505,81 @@ color: black;
 """
         from compressor.filters.csstidy import CSSTidyFilter
         self.assertEqual(
-            "font,th,td,p{color:#000;}", CSSTidyFilter(content).output())
+            "font,th,td,p{color:#000;}", CSSTidyFilter(content).input())
 
 CssTidyTestCase = skipIf(
     find_command(settings.COMPRESS_CSSTIDY_BINARY) is None,
     'CSStidy binary %r not found' % settings.COMPRESS_CSSTIDY_BINARY
 )(CssTidyTestCase)
 
+
+class CompassTestCase(TestCase):
+
+    def setUp(self):
+        self.old_debug = settings.DEBUG
+        self.old_compress_css_filters = settings.COMPRESS_CSS_FILTERS
+        self.old_compress_url = settings.COMPRESS_URL
+        self.old_enabled = settings.COMPRESS_ENABLED
+        settings.DEBUG = True
+        settings.COMPRESS_ENABLED = True
+        settings.COMPRESS_CSS_FILTERS = [
+            'compressor.filters.compass.CompassFilter',
+            'compressor.filters.css_default.CssAbsoluteFilter',
+        ]
+        settings.COMPRESS_URL = '/media/'
+
+    def tearDown(self):
+        settings.DEBUG = self.old_debug
+        settings.COMPRESS_URL = self.old_compress_url
+        settings.COMPRESS_ENABLED = self.old_enabled
+        settings.COMPRESS_CSS_FILTERS = self.old_compress_css_filters
+
+    def test_compass(self):
+        template = u"""{% load compress %}{% compress css %}
+        <link rel="stylesheet" href="{{ MEDIA_URL }}sass/screen.scss" type="text/css" charset="utf-8">
+        <link rel="stylesheet" href="{{ MEDIA_URL }}sass/print.scss" type="text/css" charset="utf-8">
+        {% endcompress %}
+        """
+        context = {'MEDIA_URL': settings.COMPRESS_URL}
+        out = css_tag("/media/CACHE/css/3f807af2259c.css")
+        self.assertEqual(out, render(template, context))
+
+CompassTestCase = skipIf(
+    find_command(settings.COMPRESS_COMPASS_BINARY) is None,
+    'Compass binary %r not found' % settings.COMPRESS_COMPASS_BINARY
+)(CompassTestCase)
+
+
 class PrecompilerTestCase(TestCase):
 
     def setUp(self):
         self.this_dir = os.path.dirname(__file__)
         self.filename = os.path.join(self.this_dir, 'media/css/one.css')
-        self.test_precompiler =  os.path.join(self.this_dir, 'precompiler.py')
         with open(self.filename) as f:
             self.content = f.read()
+        self.test_precompiler =  os.path.join(self.this_dir, 'precompiler.py')
 
     def test_precompiler_infile_outfile(self):
         command = '%s %s -f {infile} -o {outfile}' % (sys.executable, self.test_precompiler)
         compiler = CompilerFilter(content=self.content, filename=self.filename, command=command)
-        self.assertEqual(u"body { color:#990; }", compiler.output())
-
-    def test_precompiler_stdin_outfile(self):
-        command = '%s %s -o {outfile}' %  (sys.executable, self.test_precompiler)
-        compiler = CompilerFilter(content=self.content, filename=None, command=command)
-        self.assertEqual(u"body { color:#990; }", compiler.output())
-
-    def test_precompiler_stdin_stdout(self):
-        command = '%s %s' %  (sys.executable, self.test_precompiler)
-        compiler = CompilerFilter(content=self.content, filename=None, command=command)
-        self.assertEqual(u"body { color:#990; }\n", compiler.output())
-
-    def test_precompiler_stdin_stdout_filename(self):
-        command = '%s %s' %  (sys.executable, self.test_precompiler)
-        compiler = CompilerFilter(content=self.content, filename=self.filename, command=command)
-        self.assertEqual(u"body { color:#990; }\n", compiler.output())
+        self.assertEqual(u"body { color:#990; }", compiler.input())
 
     def test_precompiler_infile_stdout(self):
         command = '%s %s -f {infile}' %  (sys.executable, self.test_precompiler)
         compiler = CompilerFilter(content=self.content, filename=None, command=command)
-        self.assertEqual(u"body { color:#990; }\n", compiler.output())
+        self.assertEqual(u"body { color:#990; }\n", compiler.input())
+
+    def test_precompiler_stdin_outfile(self):
+        command = '%s %s -o {outfile}' %  (sys.executable, self.test_precompiler)
+        compiler = CompilerFilter(content=self.content, filename=None, command=command)
+        self.assertEqual(u"body { color:#990; }", compiler.input())
+
+    def test_precompiler_stdin_stdout(self):
+        command = '%s %s' %  (sys.executable, self.test_precompiler)
+        compiler = CompilerFilter(content=self.content, filename=None, command=command)
+        self.assertEqual(u"body { color:#990; }\n", compiler.input())
+
+    def test_precompiler_stdin_stdout_filename(self):
+        command = '%s %s' %  (sys.executable, self.test_precompiler)
+        compiler = CompilerFilter(content=self.content, filename=self.filename, command=command)
+        self.assertEqual(u"body { color:#990; }\n", compiler.input())
