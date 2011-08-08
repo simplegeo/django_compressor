@@ -1,3 +1,9 @@
+python-django-compressor (0.9.2-0sg0) unstable; urgency=low
+
+  * Simplegeoized.
+
+ -- Jon Rohan <jon@simplegeo.com>  Mon, 8 Aug 2011 13:37:27 -0700
+
 python-django-compressor (0.6a7-0sg30) maverick; urgency=low
 
   * UNRELEASED
